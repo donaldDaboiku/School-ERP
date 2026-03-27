@@ -14,12 +14,20 @@ class ReportGenerated
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
+    public ?string $reportType;
+    public ?int $schoolId;
+    public ?array $filters;
+    public ?array $result;
+
     /**
      * Create a new event instance.
      */
-    public function __construct()
+    public function __construct(?string $reportType = null, ?int $schoolId = null, ?array $filters = null, ?array $result = null)
     {
-        //
+        $this->reportType = $reportType;
+        $this->schoolId = $schoolId;
+        $this->filters = $filters;
+        $this->result = $result;
     }
 
     /**

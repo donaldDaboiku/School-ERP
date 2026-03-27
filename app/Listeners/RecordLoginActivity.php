@@ -3,8 +3,6 @@
 namespace App\Listeners;
 
 use App\Events\UserLoggedIn;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Queue\InteractsWithQueue;
 
 class RecordLoginActivity
 {
@@ -21,6 +19,15 @@ class RecordLoginActivity
      */
     public function handle(UserLoggedIn $event): void
     {
-        //
+        $user = $event->user ?? null;
+        if (!$user) {
+            \Illuminate\Support\Facades\Log::warning('RecordLoginActivity: missing user');
+            return;
+        }
+
+        $user->update([
+            'last_login_at' => now(),
+            'last_login_ip' => $event->ip ?? request()->ip(),
+        ]);
     }
 }

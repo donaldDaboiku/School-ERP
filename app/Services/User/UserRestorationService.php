@@ -3,16 +3,37 @@
 namespace App\Services\User;
 
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 
 class UserRestorationService
 {
-    public function beforeRestore(User $user): void
+    /**
+     * Restore a soft-deleted user.
+     */
+    public function restore(User $user): User
     {
-        // validation before restore
+        return DB::transaction(function () use ($user) {
+            if (method_exists($user, 'restore') && $user->trashed()) {
+                $user->restore();
+            }
+
+            return $user->fresh();
+        });
     }
 
-    public function afterRestore(User $user): void
+    /**
+     * Restore by id (including trashed).
+     */
+    public function restoreById(int $userId): User
     {
-        // notifications & cache clearing
+        return DB::transaction(function () use ($userId) {
+            $user = User::withTrashed()->findOrFail($userId);
+
+            if ($user->trashed()) {
+                $user->restore();
+            }
+
+            return $user->fresh();
+        });
     }
 }

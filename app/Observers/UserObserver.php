@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Laravel\Passport\Token;
 
 class UserObserver
 {
@@ -81,7 +82,8 @@ class UserObserver
             Cache::tags(['users'])->flush();
 
             // Dispatch user created event
-            event(new UserCreated());
+            event(new UserCreated($user, Auth::id()));
+            event(new \App\Events\UserRegistered($user));
 
             // Send welcome email (queued)
             if (config('mail.enabled')) {
@@ -189,11 +191,11 @@ class UserObserver
             Cache::tags(['users'])->flush();
 
             // Dispatch user updated event
-            event(new UserUpdated());
+            event(new UserUpdated($user));
 
             // Dispatch password changed event if password was changed
             if ($user->wasChanged('password')) {
-                event(new UserPasswordChanged());
+                event(new UserPasswordChanged($user));
                 
                 // Send password changed notification
                 if (config('mail.enabled')) {
@@ -202,7 +204,20 @@ class UserObserver
 
                 // Invalidate all active sessions except current
                 if (config('security.invalidate_sessions_on_password_change')) {
-                    $user->tokens()->where('id', '!=', $user->currentAccessToken()?->id)->delete();
+                    $currentToken = $user->currentAccessToken();
+                    $currentTokenId = null;
+
+                    if ($currentToken instanceof Token) {
+                        $currentTokenId = $currentToken->getKey();
+                    } elseif ($currentToken && isset($currentToken->id)) {
+                        $currentTokenId = $currentToken->id;
+                    }
+
+                    if ($currentTokenId !== null) {
+                        $user->tokens()->where('id', '!=', $currentTokenId)->delete();
+                    } else {
+                        $user->tokens()->delete();
+                    }
                 }
             }
 
@@ -288,7 +303,7 @@ class UserObserver
             Cache::tags(['users', 'user_' . $user->id])->flush();
 
             // Dispatch user deleted event
-            event(new UserDeleted());
+            event(new UserDeleted($user, Auth::id(), request()->input('deletion_reason')));
 
             // Archive user data if configured
             if (config('users.archive_deleted_users')) {
@@ -535,7 +550,7 @@ class UserObserver
 
         // Delete OAuth tokens if using Passport
         if (class_exists('Laravel\Passport\Token')) {
-            \Laravel\Passport\Token::where('user_id', $user->id)->delete();
+            Token::where('user_id', $user->id)->delete();
             \Laravel\Passport\RefreshToken::where('access_token_id', function ($query) use ($user) {
                 $query->select('id')->from('oauth_access_tokens')->where('user_id', $user->id);
             })->delete();
@@ -600,8 +615,16 @@ class UserObserver
 
                 if(method_exists($user, 'tokens')){
                     $currentToken = $user->currentAccessToken();
-                    if ($currentToken){
-                        $user->tokens()->where('id', '!=', $currentToken->id)->delete();
+                    $currentTokenId = null;
+
+                    if ($currentToken instanceof Token) {
+                        $currentTokenId = $currentToken->getKey();
+                    } elseif ($currentToken && isset($currentToken->id)) {
+                        $currentTokenId = $currentToken->id;
+                    }
+
+                    if ($currentTokenId !== null) {
+                        $user->tokens()->where('id', '!=', $currentTokenId)->delete();
                     } else {
                         $user->tokens()->delete();
                     }

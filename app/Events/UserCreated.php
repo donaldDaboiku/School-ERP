@@ -2,6 +2,7 @@
 
 namespace App\Events;
 
+use App\Models\User;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
@@ -14,12 +15,16 @@ class UserCreated
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
+    public ?User $user;
+    public ?int $createdBy;
+
     /**
      * Create a new event instance.
      */
-    public function __construct()
+    public function __construct(?User $user = null, ?int $createdBy = null)
     {
-        //
+        $this->user = $user;
+        $this->createdBy = $createdBy;
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace App\Events;
 
+use App\Models\Notice;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
@@ -14,12 +15,16 @@ class AnnouncementPublished
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
+    public ?Notice $notice;
+    public ?int $schoolId;
+
     /**
      * Create a new event instance.
      */
-    public function __construct()
+    public function __construct(?Notice $notice = null, ?int $schoolId = null)
     {
-        //
+        $this->notice = $notice;
+        $this->schoolId = $schoolId;
     }
 
     /**

@@ -6,8 +6,11 @@ use App\Models\Subject;
 use App\Models\ClassModel;
 use App\Models\Timetable;
 use App\Models\Grade;
+use App\Events\TeacherAssigned;
+use App\Events\ClassScheduled;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 
 class TeacherService {
     
@@ -68,10 +71,12 @@ class TeacherService {
                     ],
                     [
                         'assigned_at' => now(),
-                        'assigned_by' => auth()->id() ?? null
+                        'assigned_by' => Auth::id() ?? null
                     ]
                 );
             }
+
+            event(new TeacherAssigned($teacher, null, $subjectIds, 'subject-teacher', $academicYear ? (int) $academicYear : null));
             
             return ['success' => true, 'message' => 'Subjects assigned successfully'];
             
@@ -112,6 +117,8 @@ class TeacherService {
                     );
                 }
             }
+
+            event(new TeacherAssigned($teacher, $classIds, $subjectId ? [$subjectId] : null, $role, $academicYear ?? null));
             
             DB::commit();
             return ['success' => true, 'message' => 'Classes assigned successfully'];
@@ -174,6 +181,16 @@ class TeacherService {
                 'effective_from' => $data['effective_from'] ?? now(),
                 'effective_to' => $data['effective_to'] ?? null
             ]);
+
+            event(new ClassScheduled($timetable, [
+                'school_id' => $timetable->school_id ?? null,
+                'academic_session_id' => $data['academic_session_id'] ?? null,
+                'teacher_id' => $teacherId,
+                'class_id' => $data['class_id'],
+                'subject_id' => $data['subject_id'],
+                'day_of_week' => $data['day_of_week'],
+                'slot_id' => $data['slot_id'],
+            ]));
             
             return ['success' => true, 'timetable' => $timetable, 'message' => 'Timetable entry created'];
             
@@ -239,7 +256,7 @@ class TeacherService {
                 [
                     'status' => $status,
                     'remarks' => $remarks,
-                    'recorded_by' => auth()->id() ?? null
+                    'recorded_by' => Auth::id() ?? null
                 ]
             );
             

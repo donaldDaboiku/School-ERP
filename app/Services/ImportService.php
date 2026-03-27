@@ -9,8 +9,13 @@ use App\Models\Teacher;
 use App\Models\Classes;
 use App\Models\Subject;
 use App\Models\Payment;
+use App\Models\Attendance;
+use App\Events\GradeAssigned;
+use App\Events\StudentAttended;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -328,7 +333,7 @@ class ImportService
                 if ($attendance) {
                     $results['successful']++;
                     $results['imported'][] = [
-                        'date' => $attendance->attendance_date->format('d/m/Y'),
+                        'date' => $this->formatDate($attendance->attendance_date),
                         'student' => $attendance->student->full_name,
                         'status' => $attendance->status,
                     ];
@@ -583,7 +588,7 @@ class ImportService
         
         $percentage = ($data['marks_obtained'] / $data['total_marks']) * 100;
         
-        return \App\Models\Result::create([
+        $result = \App\Models\Result::create([
             'school_id' => $school->id,
             'student_id' => $student->id,
             'class_id' => $student->class_id,
@@ -597,8 +602,12 @@ class ImportService
             'grade_point' => $this->calculateGradePoint($percentage),
             'teacher_comment' => $data['teacher_comment'] ?? null,
             'is_finalized' => true,
-            'graded_by' => auth()->id(),
+            'graded_by' => Auth::id(),
         ]);
+
+        event(new GradeAssigned($result));
+
+        return $result;
     }
 
     /**
@@ -628,6 +637,141 @@ class ImportService
     }
 
     /**
+     * Validate payment import data
+     */
+    private function validatePaymentData(array $data, School $school): \Illuminate\Contracts\Validation\Validator
+    {
+        return Validator::make($data, [
+            'admission_number' => 'required|exists:students,admission_number,school_id,' . $school->id,
+            'payment_type' => 'required|string|max:100',
+            'description' => 'nullable|string',
+            'amount' => 'required|numeric|min:0.01',
+            'due_date' => 'nullable|date',
+            'payment_method' => 'nullable|string|max:100',
+        ]);
+    }
+
+    /**
+     * Create payment from imported data
+     */
+    private function createPayment(School $school, array $data): ?Payment
+    {
+        $student = Student::where('admission_number', $data['admission_number'])
+            ->where('school_id', $school->id)
+            ->first();
+
+        if (!$student) {
+            return null;
+        }
+
+        $paymentService = new PaymentService();
+
+        return $paymentService->createInvoice([
+            'school_id' => $school->id,
+            'student_id' => $student->id,
+            'payment_type' => $data['payment_type'],
+            'description' => $data['description'] ?? null,
+            'amount' => (float) $data['amount'],
+            'due_date' => $data['due_date'] ?? now()->addDays(30),
+            'notes' => $data['notes'] ?? null,
+            'send_notification' => false,
+        ]);
+    }
+
+    /**
+     * Validate attendance import data
+     */
+    private function validateAttendanceData(array $data, School $school): \Illuminate\Contracts\Validation\Validator
+    {
+        return Validator::make($data, [
+            'admission_number' => 'required|exists:students,admission_number,school_id,' . $school->id,
+            'attendance_date' => 'required|date',
+            'status' => 'required|in:present,absent,late,excused',
+            'reason' => 'nullable|string',
+            'class_code' => 'nullable|exists:classes,code,school_id,' . $school->id,
+        ]);
+    }
+
+    /**
+     * Create attendance record from imported data
+     */
+    private function createAttendance(School $school, array $data): ?Attendance
+    {
+        $student = Student::where('admission_number', $data['admission_number'])
+            ->where('school_id', $school->id)
+            ->first();
+
+        if (!$student) {
+            return null;
+        }
+
+        $currentSession = $school->currentAcademicSession;
+        $currentTerm = $currentSession ? $currentSession->currentTerm() : null;
+
+        $existing = Attendance::where('school_id', $school->id)
+            ->where('student_id', $student->id)
+            ->where('attendance_date', $data['attendance_date'])
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $attendance = Attendance::create([
+            'school_id' => $school->id,
+            'student_id' => $student->id,
+            'class_id' => $student->class_id,
+            'academic_session_id' => $currentSession?->id,
+            'term_id' => $currentTerm?->id,
+            'attendance_date' => $data['attendance_date'],
+            'status' => $data['status'],
+            'reason' => $data['reason'] ?? null,
+            'recorded_by' => Auth::id(),
+        ]);
+
+        event(new StudentAttended($attendance));
+
+        return $attendance;
+    }
+
+    /**
+     * Validate subject import data
+     */
+    private function validateSubjectData(array $data, School $school): \Illuminate\Contracts\Validation\Validator
+    {
+        return Validator::make($data, [
+            'name' => 'required|string|max:200',
+            'code' => 'required|string|max:20|unique:subjects,code,NULL,id,school_id,' . $school->id,
+            'short_name' => 'nullable|string|max:50',
+            'type' => 'required|in:core,elective',
+            'position' => 'nullable|integer|min:1',
+            'has_practical' => 'nullable|boolean',
+            'max_score' => 'nullable|numeric|min:0',
+            'pass_score' => 'nullable|numeric|min:0',
+            'description' => 'nullable|string',
+        ]);
+    }
+
+    /**
+     * Create subject from imported data
+     */
+    private function createSubject(School $school, array $data): ?Subject
+    {
+        return Subject::create([
+            'school_id' => $school->id,
+            'name' => $data['name'],
+            'code' => $data['code'],
+            'short_name' => $data['short_name'] ?? null,
+            'type' => $data['type'],
+            'position' => $data['position'] ?? null,
+            'has_practical' => filter_var($data['has_practical'] ?? false, FILTER_VALIDATE_BOOLEAN),
+            'max_score' => $data['max_score'] ?? null,
+            'pass_score' => $data['pass_score'] ?? null,
+            'description' => $data['description'] ?? null,
+        ]);
+    }
+
+    /**
      * Generate template for import
      */
     public function generateTemplate(string $type): string
@@ -649,6 +793,14 @@ class ImportService
                 ['admission_number', 'payment_type', 'description', 'amount', 'due_date', 'payment_method'],
                 ['STU2024001', 'tuition', 'First Term Fees', '50000', '2024-10-31', 'bank_transfer'],
             ],
+            'attendance' => [
+                ['admission_number', 'attendance_date', 'status', 'reason', 'class_code'],
+                ['STU2024001', '2024-10-01', 'present', '', 'PRI5A'],
+            ],
+            'subjects' => [
+                ['name', 'code', 'short_name', 'type', 'position', 'has_practical', 'max_score', 'pass_score', 'description'],
+                ['Mathematics', 'MATH', 'MATH', 'core', '1', '0', '100', '40', 'Core mathematics'],
+            ],
         ];
         
         if (!isset($templates[$type])) {
@@ -667,5 +819,22 @@ class ImportService
         fclose($file);
         
         return $path;
+    }
+
+    private function formatDate($value, string $format = 'd/m/Y'): ?string
+    {
+        if (!$value) {
+            return null;
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format($format);
+        }
+
+        if (is_string($value) || is_numeric($value)) {
+            return \Carbon\Carbon::parse($value)->format($format);
+        }
+
+        return null;
     }
 }

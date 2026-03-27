@@ -254,7 +254,7 @@ class ExportService
         
         $pdf = Pdf::loadView('exports.report-card', [
             'reportCard' => $reportCard,
-            'school' => \App\Models\Student::find($studentId)->school,
+            'school' => Student::find($studentId)->school,
         ]);
         
         $filename = 'report_card_' . $reportCard['student']['admission_number'] . '_' . now()->format('Ymd_His') . '.pdf';
@@ -275,7 +275,7 @@ class ExportService
         
         $pdf = Pdf::loadView('exports.transcript', [
             'transcript' => $transcript,
-            'school' => \App\Models\Student::find($studentId)->school,
+            'school' => Student::find($studentId)->school,
         ]);
         
         $filename = 'transcript_' . $transcript['student']['admission_number'] . '_' . now()->format('Ymd_His') . '.pdf';

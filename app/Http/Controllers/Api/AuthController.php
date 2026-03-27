@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Events\UserLoggedIn;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
@@ -25,6 +26,8 @@ class AuthController extends Controller
         $user = $request->user();
 
         $token = $user->createToken('api-token')->plainTextToken;
+
+        event(new UserLoggedIn($user, $request->ip(), $request->userAgent()));
 
         return response()->json([
             'message' => 'Login successful',

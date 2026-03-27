@@ -2,6 +2,7 @@
 
 namespace App\Events;
 
+use App\Models\Timetable;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
@@ -14,12 +15,16 @@ class ClassScheduled
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
+    public ?Timetable $timetable;
+    public ?array $payload;
+
     /**
      * Create a new event instance.
      */
-    public function __construct()
+    public function __construct(?Timetable $timetable = null, ?array $payload = null)
     {
-        //
+        $this->timetable = $timetable;
+        $this->payload = $payload;
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace App\Events;
 
+use App\Models\Result;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
@@ -14,12 +15,14 @@ class GradeAssigned
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
+    public ?Result $result;
+
     /**
      * Create a new event instance.
      */
-    public function __construct()
+    public function __construct(?Result $result = null)
     {
-        //
+        $this->result = $result;
     }
 
     /**

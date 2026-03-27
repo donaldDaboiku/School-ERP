@@ -3,8 +3,6 @@
 namespace App\Listeners;
 
 use App\Events\UserRegistered;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Queue\InteractsWithQueue;
 
 class SendWelcomeEmail
 {
@@ -21,6 +19,12 @@ class SendWelcomeEmail
      */
     public function handle(UserRegistered $event): void
     {
-        //
+        $user = $event->user ?? null;
+        if (!$user) {
+            \Illuminate\Support\Facades\Log::warning('SendWelcomeEmail: missing user');
+            return;
+        }
+
+        (new \App\Services\NotificationService())->sendWelcomeEmail($user, $event->password ?? null);
     }
 }

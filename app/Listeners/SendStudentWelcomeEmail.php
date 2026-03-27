@@ -3,8 +3,6 @@
 namespace App\Listeners;
 
 use App\Events\StudentCreated;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Queue\InteractsWithQueue;
 
 class SendStudentWelcomeEmail
 {
@@ -21,6 +19,12 @@ class SendStudentWelcomeEmail
      */
     public function handle(StudentCreated $event): void
     {
-        //
+        $student = $event->student ?? null;
+        if (!$student) {
+            \Illuminate\Support\Facades\Log::warning('SendStudentWelcomeEmail: missing student');
+            return;
+        }
+
+        (new \App\Services\NotificationService())->sendStudentAdmissionNotification($student);
     }
 }

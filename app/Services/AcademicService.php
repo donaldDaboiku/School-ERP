@@ -10,8 +10,10 @@ use App\Models\Result;
 use App\Models\Remark;
 use App\Models\Attendance;
 use App\Models\Assessment;
+use App\Events\StudentPromoted;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 
 class AcademicService
 {
@@ -89,11 +91,14 @@ class AcademicService
             $results = [];
             $classes = Classes::where('school_id', $school->id)
                 ->where('term_id', $termId)
-                ->get();
+                ->get()
+                ->all();
 
             foreach ($classes as $class) {
-                $classResults = $this->calculateClassResults($class, $term, $options);
-                $results[$class->id] = $classResults;
+                if ($class instanceof Classes) {
+                    $classResults = $this->calculateClassResults($class, $term, $options);
+                    $results[$class->id] = $classResults;
+                }
             }
 
             // Update term status if all results finalized
@@ -185,6 +190,7 @@ class AcademicService
                 ->get();
 
             foreach ($students as $student) {
+                $student = $student instanceof Student ? $student : Student::find($student->id ?? $student['id'] ?? null);
                 if (!$this->meetsPromotionCriteria($student, $criteria)) {
                     $results['retained'][] = [
                         'student' => $student->full_name,
@@ -206,6 +212,14 @@ class AcademicService
                 // Update student class
                 $oldClassId = $student->class_id;
                 $student->update(['class_id' => $targetClass->id]);
+
+                event(new StudentPromoted(
+                    $student,
+                    $oldClassId,
+                    $targetClass->id,
+                    $academicSessionId,
+                    $promotionData['term_id'] ?? null
+                ));
 
                 // Record promotion
                 $student->promotionHistory()->create([
@@ -247,8 +261,8 @@ class AcademicService
         $calendar = [
             'academic_session' => $session->name,
             'school' => $session->school->name,
-            'start_date' => \Carbon\Carbon::parse($session->start_date)->format('F j, Y'),
-            'end_date' => \Carbon\Carbon::parse($session->end_date)->format('F j, Y'),
+            'start_date' => Carbon::parse($session->start_date)->format('F j, Y'),
+            'end_date' => Carbon::parse($session->end_date)->format('F j, Y'),
             'terms' => [],
             'events' => [],
             'holidays' => [],
@@ -271,7 +285,7 @@ class AcademicService
                     return [
                         'type' => 'assessment',
                         'title' => $assessment->title,
-                        'date' => $assessment->assessment_date ? \Carbon\Carbon::parse($assessment->assessment_date)->format('F j, Y') : 'N/A',
+                        'date' => $assessment->assessment_date ? Carbon::parse($assessment->assessment_date)->format('F j, Y') : 'N/A',
                         'description' => $assessment->description,
                     ];
                 });
@@ -304,13 +318,15 @@ class AcademicService
      */
     public function calculateClassRank(int $classId, int $termId): array
     {
-        $students = Student::where('class_id', $classId)
+        $studentModels = Student::where('class_id', $classId)
             ->with(['user', 'results' => function ($query) use ($termId) {
                 $query->where('term_id', $termId)
                     ->where('is_finalized', true);
             }])
-            ->get()
-            ->map(function ($student) use ($termId) {
+            ->get();
+
+        $students = $studentModels
+            ->map(function (Student $student) use ($termId) {
                 $average = $this->calculateStudentAverage($student, null, $termId);
                 
                 return [
@@ -444,10 +460,11 @@ class AcademicService
 
     private function createDefaultTerms(AcademicSession $session): void
     {
+        $startDate = Carbon::parse($session->start_date);
         $terms = [
-            ['name' => 'First Term', 'order' => 1, 'start_date' => $session->start_date, 'end_date' => $session->start_date->copy()->addMonths(3)],
-            ['name' => 'Second Term', 'order' => 2, 'start_date' => $session->start_date->copy()->addMonths(4), 'end_date' => $session->start_date->copy()->addMonths(7)],
-            ['name' => 'Third Term', 'order' => 3, 'start_date' => $session->start_date->copy()->addMonths(8), 'end_date' => $session->end_date],
+            ['name' => 'First Term', 'order' => 1, 'start_date' => $startDate, 'end_date' => $startDate->copy()->addMonths(3)],
+            ['name' => 'Second Term', 'order' => 2, 'start_date' => $startDate->copy()->addMonths(4), 'end_date' => $startDate->copy()->addMonths(7)],
+            ['name' => 'Third Term', 'order' => 3, 'start_date' => $startDate->copy()->addMonths(8), 'end_date' => Carbon::parse($session->end_date)],
         ];
 
         foreach ($terms as $term) {

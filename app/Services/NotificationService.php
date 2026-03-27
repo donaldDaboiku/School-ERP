@@ -9,13 +9,14 @@ use App\Models\Payment;
 use App\Models\Notice;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class NotificationService
 {
     /**
      * Send welcome email to new user
      */
-    public function sendWelcomeEmail(User $user, string $password = null): bool
+    public function sendWelcomeEmail(User $user, ?string $password = null): bool
     {
         try {
             Mail::send('emails.welcome', [
@@ -140,7 +141,7 @@ class NotificationService
                 'payment' => $payment,
                 'student' => $student,
                 'school' => $payment->school,
-                'due_date' => $payment->due_date->format('d/m/Y'),
+                'due_date' => $this->formatDate($payment->due_date),
             ];
             
             // Send to parents
@@ -194,7 +195,7 @@ class NotificationService
                 'school' => $payment->school,
                 'amount_paid' => $amount,
                 'receipt_number' => $payment->receipt_number,
-                'payment_date' => $payment->payment_date->format('d/m/Y'),
+                'payment_date' => $this->formatDate($payment->payment_date),
             ];
             
             // Send to parents
@@ -253,7 +254,7 @@ class NotificationService
                 'payment' => $payment,
                 'student' => $student,
                 'school' => $payment->school,
-                'due_date' => $payment->due_date->format('d/m/Y'),
+                'due_date' => $this->formatDate($payment->due_date),
                 'days_overdue' => $daysOverdue,
                 'balance' => $payment->balance,
             ];
@@ -290,6 +291,62 @@ class NotificationService
                 'error' => $e->getMessage(),
             ]);
             
+            return false;
+        }
+    }
+
+    /**
+     * Send refund notification
+     */
+    public function sendRefundNotification(Payment $payment, float $amount, string $reason): bool
+    {
+        try {
+            $student = $payment->student;
+            $parents = $student->parents;
+
+            $data = [
+                'payment' => $payment,
+                'student' => $student,
+                'school' => $payment->school,
+                'refund_amount' => $amount,
+                'reason' => $reason,
+                'refund_date' => $this->formatDate(now()),
+            ];
+
+            $sent = false;
+
+            if (view()->exists('emails.refund')) {
+                foreach ($parents as $parent) {
+                    if ($parent->user->email && $parent->receives_notifications) {
+                        Mail::send('emails.refund', $data, function ($message) use ($parent, $payment) {
+                            $message->to($parent->user->email)
+                                ->subject('Payment Refund: ' . $payment->invoice_number);
+                        });
+                        $sent = true;
+                    }
+                }
+            } else {
+                Log::channel('notification')->warning('Refund email view not found', [
+                    'payment_id' => $payment->id,
+                    'view' => 'emails.refund',
+                ]);
+            }
+
+            Log::channel('notification')->info('Refund notification processed', [
+                'payment_id' => $payment->id,
+                'invoice_number' => $payment->invoice_number,
+                'amount' => $amount,
+                'sent' => $sent,
+            ]);
+
+            return $sent;
+
+        } catch (\Exception $e) {
+            Log::channel('notification')->error('Failed to send refund notification', [
+                'payment_id' => $payment->id,
+                'error' => $e->getMessage(),
+            ]);
+
             return false;
         }
     }
@@ -383,7 +440,7 @@ class NotificationService
                 'student' => $student,
                 'attendance' => $attendanceData,
                 'school' => $student->school,
-                'date' => $attendanceData['date']->format('d/m/Y'),
+                'date' => $this->formatDate($attendanceData['date']),
             ];
             
             // Send to parents
@@ -391,7 +448,7 @@ class NotificationService
                 if ($parent->user->email && $parent->receives_notifications) {
                     Mail::send('emails.attendance', $data, function ($message) use ($parent, $attendanceData) {
                         $status = $attendanceData['status'];
-                        $subject = 'Attendance ' . ucfirst($status) . ': ' . $attendanceData['date']->format('d/m/Y');
+                        $subject = 'Attendance ' . ucfirst($status) . ': ' . $this->formatDate($attendanceData['date']);
                         $message->to($parent->user->email)->subject($subject);
                     });
                 }
@@ -399,7 +456,7 @@ class NotificationService
             
             Log::channel('notification')->info('Attendance notification sent', [
                 'student_id' => $student->id,
-                'attendance_date' => $attendanceData['date']->format('Y-m-d'),
+                'attendance_date' => $this->formatDate($attendanceData['date'], 'Y-m-d'),
                 'status' => $attendanceData['status'],
             ]);
             
@@ -627,5 +684,22 @@ class NotificationService
         }
         
         return $uniqueRecipients;
+    }
+
+    private function formatDate($value, string $format = 'd/m/Y'): ?string
+    {
+        if (!$value) {
+            return null;
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format($format);
+        }
+
+        if (is_string($value) || is_numeric($value)) {
+            return Carbon::parse($value)->format($format);
+        }
+
+        return null;
     }
 }

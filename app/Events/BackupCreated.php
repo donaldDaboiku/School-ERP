@@ -14,12 +14,18 @@ class BackupCreated
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
+    public ?string $path;
+    public ?int $schoolId;
+    public ?array $metadata;
+
     /**
      * Create a new event instance.
      */
-    public function __construct()
+    public function __construct(?string $path = null, ?int $schoolId = null, ?array $metadata = null)
     {
-        //
+        $this->path = $path;
+        $this->schoolId = $schoolId;
+        $this->metadata = $metadata;
     }
 
     /**

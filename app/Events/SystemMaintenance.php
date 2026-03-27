@@ -14,12 +14,31 @@ class SystemMaintenance
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
+    public ?string $message;
+    public ?string $severity;
+    public ?string $startsAt;
+    public ?string $endsAt;
+    public ?int $initiatedBy;
+    public ?array $context;
+
     /**
      * Create a new event instance.
      */
-    public function __construct()
+    public function __construct(
+        ?string $message = null,
+        ?string $severity = null,
+        ?string $startsAt = null,
+        ?string $endsAt = null,
+        ?int $initiatedBy = null,
+        ?array $context = null
+    )
     {
-        //
+        $this->message = $message;
+        $this->severity = $severity;
+        $this->startsAt = $startsAt;
+        $this->endsAt = $endsAt;
+        $this->initiatedBy = $initiatedBy;
+        $this->context = $context;
     }
 
     /**

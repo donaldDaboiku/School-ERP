@@ -3,6 +3,9 @@
 namespace App\Http\Requests\Student;
 
 use Illuminate\Foundation\Http\FormRequest;
+use App\Rules\NigerianPhone;
+use App\Rules\StudentAge;
+use App\Rules\ValidAdmissionNumber;
 
 class StoreStudentRequest extends FormRequest
 {
@@ -18,11 +21,12 @@ class StoreStudentRequest extends FormRequest
             'last_name' => 'required|string|max:100',
             'middle_name' => 'nullable|string|max:100',
             'email' => 'required|email|unique:users,email',
-            'phone' => 'nullable|string|max:20',
+            'phone' => ['nullable', 'string', 'max:20', new NigerianPhone()],
             'gender' => 'required|in:male,female',
-            'date_of_birth' => 'required|date|before:today',
+            'date_of_birth' => ['required', 'date', new StudentAge()],
             'address' => 'nullable|string',
             
+            'admission_number' => ['nullable', 'string', new ValidAdmissionNumber()],
             'admission_date' => 'nullable|date',
             'class_id' => 'nullable|exists:classes,id',
             'blood_group' => 'nullable|string|in:A+,A-,B+,B-,AB+,AB-,O+,O-',

@@ -3,8 +3,6 @@
 namespace App\Listeners;
 
 use App\Events\StudentCreated;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Queue\InteractsWithQueue;
 
 class CreateStudentProfile
 {
@@ -21,6 +19,19 @@ class CreateStudentProfile
      */
     public function handle(StudentCreated $event): void
     {
-        //
+        $student = $event->student ?? null;
+        if (!$student || !$student->user) {
+            \Illuminate\Support\Facades\Log::warning('CreateStudentProfile: missing student/user');
+            return;
+        }
+
+        if (!$student->user->profile) {
+            $student->user->profile()->create([
+                'timezone' => config('app.timezone'),
+                'locale' => config('app.locale'),
+                'notifications_enabled' => true,
+                'two_factor_enabled' => false,
+            ]);
+        }
     }
 }

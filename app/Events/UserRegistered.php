@@ -2,6 +2,7 @@
 
 namespace App\Events;
 
+use App\Models\User;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
@@ -14,12 +15,16 @@ class UserRegistered
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
+    public ?User $user;
+    public ?string $password;
+
     /**
      * Create a new event instance.
      */
-    public function __construct()
+    public function __construct(?User $user = null, ?string $password = null)
     {
-        //
+        $this->user = $user;
+        $this->password = $password;
     }
 
     /**

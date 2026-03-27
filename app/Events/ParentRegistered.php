@@ -2,6 +2,8 @@
 
 namespace App\Events;
 
+use App\Models\Parents;
+use App\Models\User;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
@@ -14,12 +16,16 @@ class ParentRegistered
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
+    public ?Parents $parent;
+    public ?User $user;
+
     /**
      * Create a new event instance.
      */
-    public function __construct()
+    public function __construct(?Parents $parent = null, ?User $user = null)
     {
-        //
+        $this->parent = $parent;
+        $this->user = $user;
     }
 
     /**

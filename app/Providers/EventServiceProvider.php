@@ -181,7 +181,8 @@ class EventServiceProvider extends ServiceProvider
     protected function registerObservers()
     {
         \App\Models\User::observe(\App\Observers\UserObserver::class);
-        // \App\Models\Student::observe(\App\Observers\StudentObserver::class);
+        \App\Models\Student::observe(\App\Observers\StudentObserver::class);
+        \App\Models\Payment::observe(\App\Observers\PaymentObserver::class);
         // \App\Models\Teacher::observe(\App\Observers\TeacherObserver::class);
         // \App\Models\ParentGuardian::observe(\App\Observers\ParentObserver::class);
         // \App\Models\Grade::observe(\App\Observers\GradeObserver::class);

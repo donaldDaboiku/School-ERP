@@ -2,9 +2,7 @@
 
 namespace App\Listeners;
 
-use App\Events\ClassScheduled;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Queue\InteractsWithQueue;
+use App\Events\TeacherAssigned;
 
 class UpdateTimetable
 {
@@ -19,8 +17,19 @@ class UpdateTimetable
     /**
      * Handle the event.
      */
-    public function handle(ClassScheduled $event): void
+    public function handle(TeacherAssigned $event): void
     {
-        //
+        $teacher = $event->teacher ?? null;
+        if (!$teacher) {
+            \Illuminate\Support\Facades\Log::warning('UpdateTimetable: missing teacher');
+            return;
+        }
+
+        \Illuminate\Support\Facades\Log::info('UpdateTimetable: assignment received', [
+            'teacher_id' => $teacher->id,
+            'class_ids' => $event->classIds ?? [],
+            'subject_ids' => $event->subjectIds ?? [],
+            'role' => $event->role ?? null,
+        ]);
     }
 }

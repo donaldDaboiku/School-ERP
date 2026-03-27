@@ -3,8 +3,6 @@
 namespace App\Listeners;
 
 use App\Events\StudentPromoted;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Queue\InteractsWithQueue;
 
 class UpdateStudentClass
 {
@@ -21,6 +19,14 @@ class UpdateStudentClass
      */
     public function handle(StudentPromoted $event): void
     {
-        //
+        $student = $event->student ?? null;
+        if (!$student) {
+            \Illuminate\Support\Facades\Log::warning('UpdateStudentClass: missing student');
+            return;
+        }
+
+        if ($event->toClassId && $student->class_id !== $event->toClassId) {
+            $student->update(['class_id' => $event->toClassId]);
+        }
     }
 }

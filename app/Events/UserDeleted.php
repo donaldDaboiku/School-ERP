@@ -2,6 +2,7 @@
 
 namespace App\Events;
 
+use App\Models\User;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
@@ -14,12 +15,18 @@ class UserDeleted
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
+    public ?User $user;
+    public ?int $deletedBy;
+    public ?string $reason;
+
     /**
      * Create a new event instance.
      */
-    public function __construct()
+    public function __construct(?User $user = null, ?int $deletedBy = null, ?string $reason = null)
     {
-        //
+        $this->user = $user;
+        $this->deletedBy = $deletedBy;
+        $this->reason = $reason;
     }
 
     /**

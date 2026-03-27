@@ -14,12 +14,18 @@ class FailedLoginAttempt
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
+    public ?string $email;
+    public ?string $ip;
+    public ?string $userAgent;
+
     /**
      * Create a new event instance.
      */
-    public function __construct()
+    public function __construct(?string $email = null, ?string $ip = null, ?string $userAgent = null)
     {
-        //
+        $this->email = $email;
+        $this->ip = $ip;
+        $this->userAgent = $userAgent;
     }
 
     /**

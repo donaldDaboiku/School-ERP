@@ -318,7 +318,7 @@ class SchoolService
                     $student->promotionHistory()->create([
                         'from_class_id' => $oldClassId,
                         'to_class_id' => $toClass->id,
-                        'promoted_by' => auth()->check() ? auth()->id() : null,
+                        'promoted_by' => Auth::check() ? Auth::id() : null,
                         'promotion_date' => now(),
                         'academic_session_id' => $academicSessionId,
                         'remarks' => $parameters['remarks'] ?? null,
@@ -1111,17 +1111,23 @@ class SchoolService
     private function getExporter(string $type)
     {
         $exporters = [
-            'students' => \App\Exports\StudentsExporter::class,
-            'teachers' => \App\Exports\TeachersExporter::class,
-            'subjects' => \App\Exports\SubjectsExporter::class,
-            'classes' => \App\Exports\ClassesExporter::class,
-            'results' => \App\Exports\ResultsExporter::class,
+            'students' => 'StudentsExport',
+            'teachers' => 'TeachersExport',
+            'subjects' => 'SubjectsExport',
+            'classes' => 'ClassesExport',
+            'results' => 'ResultsExport',
         ];
 
-        $exporterClass = $exporters[$type] ?? null;
+        $exporterType = $exporters[$type] ?? null;
 
-        if (!$exporterClass) {
+        if (!$exporterType) {
             throw new \InvalidArgumentException("Invalid exporter type: {$type}");
+        }
+
+        $exporterClass = "App\\Exports\\{$exporterType}";
+
+        if (!class_exists($exporterClass)) {
+            throw new \InvalidArgumentException("Exporter class not found: {$exporterClass}");
         }
 
         return new $exporterClass();

@@ -2,6 +2,7 @@
 
 namespace App\Events;
 
+use App\Models\Teacher;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
@@ -14,12 +15,28 @@ class TeacherAssigned
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
+    public ?Teacher $teacher;
+    public ?array $classIds;
+    public ?array $subjectIds;
+    public ?string $role;
+    public ?int $academicYear;
+
     /**
      * Create a new event instance.
      */
-    public function __construct()
+    public function __construct(
+        ?Teacher $teacher = null,
+        ?array $classIds = null,
+        ?array $subjectIds = null,
+        ?string $role = null,
+        ?int $academicYear = null
+    )
     {
-        //
+        $this->teacher = $teacher;
+        $this->classIds = $classIds;
+        $this->subjectIds = $subjectIds;
+        $this->role = $role;
+        $this->academicYear = $academicYear;
     }
 
     /**

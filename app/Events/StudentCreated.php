@@ -2,6 +2,7 @@
 
 namespace App\Events;
 
+use App\Models\Student;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
@@ -14,12 +15,14 @@ class StudentCreated
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
+    public ?Student $student;
+
     /**
      * Create a new event instance.
      */
-    public function __construct()
+    public function __construct(?Student $student = null)
     {
-        //
+        $this->student = $student;
     }
 
     /**

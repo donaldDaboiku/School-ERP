@@ -2,6 +2,7 @@
 
 namespace App\Events;
 
+use App\Models\Payment;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
@@ -14,12 +15,16 @@ class FeePaymentReceived
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
+    public ?Payment $payment;
+    public ?float $amount;
+
     /**
      * Create a new event instance.
      */
-    public function __construct()
+    public function __construct(?Payment $payment = null, ?float $amount = null)
     {
-        //
+        $this->payment = $payment;
+        $this->amount = $amount;
     }
 
     /**

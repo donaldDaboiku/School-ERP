@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Events\UserRegistered;
 use App\Models\User;
 use App\Models\Role;
 use Illuminate\Http\Request;
@@ -28,10 +29,11 @@ class UserController extends Controller
         $role = Role::where('name', $data['role'])->first();
         $user->roles()->attach($role);
 
+        event(new UserRegistered($user, $data['password']));
+
         return response()->json([
             'message' => 'User created successfully',
             'user'    => $user,
         ], 201);
     }
 }
-

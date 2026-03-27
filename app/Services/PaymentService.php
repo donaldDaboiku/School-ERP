@@ -5,8 +5,11 @@ namespace App\Services;
 use App\Models\Payment;
 use App\Models\Student;
 use App\Models\School;
+use App\Events\FeePaymentReceived;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 
 class PaymentService
 {
@@ -59,7 +62,7 @@ class PaymentService
                 'payment_method' => $data['payment_method'],
                 'transaction_id' => $data['transaction_id'] ?? null,
                 'payment_date' => now(),
-                'received_by' => auth()->id(),
+                'received_by' => Auth::id(),
                 'receipt_number' => $this->generateReceiptNumber($payment->school_id),
             ]);
             
@@ -71,7 +74,7 @@ class PaymentService
                         'amount' => $data['amount'],
                         'method' => $data['payment_method'],
                         'date' => now()->toISOString(),
-                        'recorded_by' => auth()->id(),
+                        'recorded_by' => Auth::id(),
                     ]
                 ]);
                 
@@ -82,6 +85,8 @@ class PaymentService
             if ($data['send_confirmation'] ?? true) {
                 $this->sendPaymentConfirmation($payment, $data['amount']);
             }
+
+            event(new FeePaymentReceived($payment->fresh(), (float) $data['amount']));
             
             return $payment->fresh();
         });
@@ -106,6 +111,7 @@ class PaymentService
             
             // Get students based on criteria
             $students = $this->getStudentsForBilling($data);
+            /** @var \Illuminate\Database\Eloquent\Collection<int, \App\Models\Student> $students */
             
             foreach ($students as $student) {
                 try {
@@ -128,7 +134,7 @@ class PaymentService
                         'admission_number' => $student->admission_number,
                         'invoice_number' => $invoice->invoice_number,
                         'amount' => $invoice->amount,
-                        'due_date' => $invoice->due_date->format('d/m/Y'),
+                        'due_date' => $this->formatDate($invoice->due_date),
                     ];
                     
                 } catch (\Exception $e) {
@@ -170,7 +176,7 @@ class PaymentService
             $refundDetails['refunds'][] = [
                 'amount' => $data['refund_amount'],
                 'reason' => $data['reason'],
-                'processed_by' => auth()->id(),
+                'processed_by' => Auth::id(),
                 'processed_at' => now()->toISOString(),
                 'method' => $data['refund_method'] ?? null,
                 'reference' => $data['refund_reference'] ?? null,
@@ -255,7 +261,7 @@ class PaymentService
                 'balance' => $payment->balance,
                 'payment_method' => $payment->payment_method ?? 'N/A',
                 'transaction_id' => $payment->transaction_id ?? 'N/A',
-                'payment_date' => $payment->payment_date?->format('d/m/Y') ?? 'N/A',
+                'payment_date' => $this->formatDate($payment->payment_date) ?? 'N/A',
             ],
             'breakdown' => $this->getPaymentBreakdown($payment),
             'received_by' => $payment->receiver->name ?? 'System',
@@ -276,6 +282,7 @@ class PaymentService
         }
         
         $payments = $query->with(['student.user', 'school'])->get();
+        /** @var \Illuminate\Database\Eloquent\Collection<int, \App\Models\Payment> $payments */
         
         $results = [
             'total' => $payments->count(),
@@ -284,9 +291,13 @@ class PaymentService
             'details' => [],
         ];
         
-        foreach ($payments as $payment) {
-            try {
-                $this->sendReminderNotification($payment);
+            foreach ($payments as $payment) {
+                try {
+                    $this->sendReminderNotification($payment);
+
+                    if ($payment->due_date && $payment->due_date->isPast()) {
+                        event(new \App\Events\FeePaymentOverdue($payment));
+                    }
                 
                 // Update last reminder sent date
                 $details = $payment->payment_details ?? [];
@@ -298,7 +309,7 @@ class PaymentService
                     'invoice' => $payment->invoice_number,
                     'student' => $payment->student->full_name,
                     'amount' => $payment->balance,
-                    'due_date' => $payment->due_date->format('d/m/Y'),
+                    'due_date' => $this->formatDate($payment->due_date),
                     'status' => 'sent',
                 ];
                 
@@ -351,6 +362,9 @@ class PaymentService
 
     /**
      * Get students for bulk billing
+     */
+    /**
+     * @return \Illuminate\Database\Eloquent\Collection<int, \App\Models\Student>
      */
     private function getStudentsForBilling(array $data): \Illuminate\Database\Eloquent\Collection
     {
@@ -459,7 +473,7 @@ class PaymentService
                     'invoice_number' => $payment->invoice_number,
                     'student' => $payment->student->full_name,
                     'amount' => $payment->balance,
-                    'due_date' => $payment->due_date->format('d/m/Y'),
+                    'due_date' => $this->formatDate($payment->due_date),
                     'days_overdue' => now()->diffInDays($payment->due_date),
                 ];
             })
@@ -476,7 +490,7 @@ class PaymentService
         if (empty($details['payments'])) {
             return [
                 [
-                    'date' => $payment->payment_date?->format('d/m/Y') ?? 'N/A',
+                    'date' => $this->formatDate($payment->payment_date) ?? 'N/A',
                     'amount' => $payment->amount_paid,
                     'method' => $payment->payment_method ?? 'N/A',
                     'reference' => $payment->transaction_id ?? 'N/A',
@@ -530,5 +544,22 @@ class PaymentService
     {
         $notificationService = new NotificationService();
         $notificationService->sendPaymentReminder($payment);
+    }
+
+    private function formatDate($value, string $format = 'd/m/Y'): ?string
+    {
+        if (!$value) {
+            return null;
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format($format);
+        }
+
+        if (is_string($value) || is_numeric($value)) {
+            return Carbon::parse($value)->format($format);
+        }
+
+        return null;
     }
 }

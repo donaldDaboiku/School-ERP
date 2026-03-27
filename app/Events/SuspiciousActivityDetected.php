@@ -14,12 +14,18 @@ class SuspiciousActivityDetected
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
+    public ?string $reason;
+    public ?array $context;
+    public ?int $userId;
+
     /**
      * Create a new event instance.
      */
-    public function __construct()
+    public function __construct(?string $reason = null, ?array $context = null, ?int $userId = null)
     {
-        //
+        $this->reason = $reason;
+        $this->context = $context;
+        $this->userId = $userId;
     }
 
     /**

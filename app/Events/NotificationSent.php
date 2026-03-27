@@ -14,12 +14,18 @@ class NotificationSent
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
+    public ?string $type;
+    public ?int $userId;
+    public ?array $payload;
+
     /**
      * Create a new event instance.
      */
-    public function __construct()
+    public function __construct(?string $type = null, ?int $userId = null, ?array $payload = null)
     {
-        //
+        $this->type = $type;
+        $this->userId = $userId;
+        $this->payload = $payload;
     }
 
     /**

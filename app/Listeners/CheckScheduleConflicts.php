@@ -3,8 +3,6 @@
 namespace App\Listeners;
 
 use App\Events\ClassScheduled;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Queue\InteractsWithQueue;
 
 class CheckScheduleConflicts
 {
@@ -21,6 +19,12 @@ class CheckScheduleConflicts
      */
     public function handle(ClassScheduled $event): void
     {
-        //
+        $payload = $event->payload ?? [];
+        if (empty($payload)) {
+            \Illuminate\Support\Facades\Log::warning('CheckScheduleConflicts: missing payload');
+            return;
+        }
+
+        \Illuminate\Support\Facades\Log::info('CheckScheduleConflicts: payload received', $payload);
     }
 }

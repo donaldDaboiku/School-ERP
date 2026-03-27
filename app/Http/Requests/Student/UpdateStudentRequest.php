@@ -3,6 +3,9 @@
 namespace App\Http\Requests\Student;
 
 use Illuminate\Foundation\Http\FormRequest;
+use App\Rules\NigerianPhone;
+use App\Rules\StudentAge;
+use App\Rules\ValidAdmissionNumber;
 
 class UpdateStudentRequest extends FormRequest
 {
@@ -20,11 +23,12 @@ class UpdateStudentRequest extends FormRequest
             'last_name' => 'sometimes|string|max:100',
             'middle_name' => 'nullable|string|max:100',
             'email' => 'sometimes|email|unique:users,email,' . $studentId . ',id',
-            'phone' => 'nullable|string|max:20',
+            'phone' => ['nullable', 'string', 'max:20', new NigerianPhone()],
             'gender' => 'sometimes|in:male,female',
-            'date_of_birth' => 'sometimes|date|before:today',
+            'date_of_birth' => ['sometimes', 'date', new StudentAge()],
             'address' => 'nullable|string',
             
+            'admission_number' => ['nullable', 'string', new ValidAdmissionNumber()],
             'class_id' => 'nullable|exists:classes,id',
             'blood_group' => 'nullable|string|in:A+,A-,B+,B-,AB+,AB-,O+,O-',
             'genotype' => 'nullable|string|in:AA,AS,SS,AC',

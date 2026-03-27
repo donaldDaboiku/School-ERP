@@ -3,8 +3,6 @@
 namespace App\Listeners;
 
 use App\Events\UserRegistered;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Queue\InteractsWithQueue;
 
 class CreateUserProfile
 {
@@ -21,6 +19,19 @@ class CreateUserProfile
      */
     public function handle(UserRegistered $event): void
     {
-        //
+        $user = $event->user ?? null;
+        if (!$user) {
+            \Illuminate\Support\Facades\Log::warning('CreateUserProfile: missing user');
+            return;
+        }
+
+        if (!$user->profile) {
+            $user->profile()->create([
+                'timezone' => config('app.timezone'),
+                'locale' => config('app.locale'),
+                'notifications_enabled' => true,
+                'two_factor_enabled' => false,
+            ]);
+        }
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Events;
 
+use App\Models\ParentTeacherMeeting;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
@@ -14,12 +15,14 @@ class ParentTeacherMeetingScheduled
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
+    public ?ParentTeacherMeeting $meeting;
+
     /**
      * Create a new event instance.
      */
-    public function __construct()
+    public function __construct(?ParentTeacherMeeting $meeting = null)
     {
-        //
+        $this->meeting = $meeting;
     }
 
     /**
