@@ -20,7 +20,7 @@ class Role extends Model
         'is_active',
     ];
 
-    protected $caasts = [
+    protected $casts = [
         'is_active' => 'boolean',
     ];
 
@@ -40,9 +40,9 @@ class Role extends Model
     }
 
     public function permissions()
-{
-    return $this->belongsToMany(Permission::class, 'permission_role', 'role_id', 'permission_id');
-}
+    {
+        return $this->belongsToMany(Permission::class, 'permission_role', 'role_id', 'permission_id');
+    }
 
     /**
      * Give a role permission

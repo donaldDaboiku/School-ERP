@@ -4,15 +4,15 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class profile extends Model
+class Profile extends Model
 {
     protected $fillable = [
-      'user_id',
-      'phone',
-      'address',
-      'avatar',
-      'date_of_birth',
-      'gender'
+        'user_id',
+        'phone',
+        'address',
+        'avatar',
+        'date_of_birth',
+        'gender',
     ];
 
     public function user()

@@ -23,7 +23,7 @@ class StudentController extends Controller
     {
         $students = Student::query()
             ->where('school_id', config('app.current_school_id'))
-            ->with(['user', 'class'])
+            ->with(['user', 'classroom'])
             ->when($request->search, function ($query, $search) {
                 $query->whereHas('user', function ($q) use ($search) {
                     $q->where('first_name', 'like', "%{$search}%")
@@ -58,7 +58,7 @@ class StudentController extends Controller
      */
     public function show(Student $student)
     {
-        $student->load(['user', 'class', 'parents']);
+        $student->load(['user', 'classroom', 'parents']);
 
         return response()->json([
             'success' => true,

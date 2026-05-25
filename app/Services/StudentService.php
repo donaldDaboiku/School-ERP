@@ -21,6 +21,7 @@ class StudentService
                 'school_id' => config('app.current_school_id'),
                 'email' => $data['email'],
                 'password' => Hash::make($data['password'] ?? Str::random(12)),
+                'name' => trim($data['first_name'] . ' ' . $data['last_name']),
                 'first_name' => $data['first_name'],
                 'last_name' => $data['last_name'],
                 'middle_name' => $data['middle_name'] ?? null,
@@ -28,12 +29,15 @@ class StudentService
                 'gender' => $data['gender'] ?? null,
                 'date_of_birth' => $data['date_of_birth'] ?? null,
                 'address' => $data['address'] ?? null,
+                'user_type' => 'student',
+                'status' => 'active',
             ]);
 
             // Assign student role
-            $user->roles()->attach(
-                \App\Models\Role::where('name', 'student')->first()->id
-            );
+            $studentRole = \App\Models\Role::where('slug', 'student')->first();
+            if ($studentRole) {
+                $user->roles()->syncWithoutDetaching([$studentRole->id]);
+            }
 
             // Create student record
             $student = Student::create([
@@ -48,9 +52,12 @@ class StudentService
                 'state_of_origin' => $data['state_of_origin'] ?? null,
                 'religion' => $data['religion'] ?? null,
                 'status' => 'active',
+                'emergency_contact_name' => $data['emergency_contact_name'] ?? 'Not provided',
+                'emergency_contact_phone' => $data['emergency_contact_phone'] ?? 'Not provided',
+                'emergency_contact_relationship' => $data['emergency_contact_relationship'] ?? 'Guardian',
             ]);
 
-            return $student->load('user', 'class');
+            return $student->load('user', 'classroom');
         });
     }
 
@@ -80,7 +87,7 @@ class StudentService
                 'religion' => $data['religion'] ?? $student->religion,
             ]);
 
-            return $student->fresh(['user', 'class']);
+            return $student->fresh(['user', 'classroom']);
         });
     }
 
@@ -118,7 +125,7 @@ class StudentService
     public function assignToClass(Student $student, int $classId): Student
     {
         $student->update(['class_id' => $classId]);
-        return $student->fresh('class');
+        return $student->fresh('classroom');
     }
 
     /**
@@ -129,7 +136,7 @@ class StudentService
         return Student::where('class_id', $classId)
             ->where('school_id', config('app.current_school_id'))
             ->where('status', 'active')
-            ->with(['user', 'class'])
+            ->with(['user', 'classroom'])
             ->get();
     }
 }

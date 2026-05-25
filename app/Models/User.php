@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Laravel\Passport\HasApiTokens;
+use Laravel\Sanctum\HasApiTokens;
 
 /**
  * @property int $id
@@ -191,6 +191,15 @@ class User extends Authenticatable
         return $this->belongsToMany(Permission::class, 'permission_user', 'user_id', 'permission_id');
     }
 
+    public function permissions(): BelongsToMany
+    {
+        return $this->permission();
+    }
+
+    public function getRoleNames()
+    {
+        return $this->roles()->pluck('name');
+    }
 
     public function hasPermission($permission)
     {
@@ -204,7 +213,20 @@ class User extends Authenticatable
 
     public function hasRole($role)
     {
-        return $this->roles()->where('slug', $role)->exists();
+        return $this->roles()
+            ->where(function ($query) use ($role) {
+                $query->where('slug', $role)->orWhere('name', $role);
+            })
+            ->exists();
+    }
+
+    public function hasAnyRole(array $roles): bool
+    {
+        return $this->roles()
+            ->where(function ($query) use ($roles) {
+                $query->whereIn('slug', $roles)->orWhereIn('name', $roles);
+            })
+            ->exists();
     }
 
     public function assignRole($role)

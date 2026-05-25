@@ -93,10 +93,11 @@ class UserObserver
             // Create user profile if doesn't exist
             if (!$user->profile) {
                 $user->profile()->create([
-                    'timezone' => config('app.timezone'),
-                    'locale' => config('app.locale'),
-                    'notifications_enabled' => true,
-                    'two_factor_enabled' => false
+                    'phone' => $user->phone,
+                    'address' => $user->address,
+                    'avatar' => $user->avatar,
+                    'date_of_birth' => $user->date_of_birth,
+                    'gender' => $user->gender,
                 ]);
             }
 
@@ -471,14 +472,16 @@ class UserObserver
 
         // Check if user is the last admin
         if ($user->hasRole('admin') || $user->hasRole('super-admin')) {
-            $adminCount = User::role(['admin', 'super-admin'])->count();
+            $adminCount = User::whereHas('roles', function ($query) {
+                $query->whereIn('slug', ['admin', 'super-admin']);
+            })->count();
             if ($adminCount <= 1) {
                 throw new \Exception('Cannot delete the last administrator');
             }
         }
 
         // Check for pending financial transactions
-        if ($user->financialTransactions()->where('status', 'pending')->exists()) {
+        if (method_exists($user, 'financialTransactions') && $user->financialTransactions()->where('status', 'pending')->exists()) {
             throw new \Exception('User has pending financial transactions');
         }
 
@@ -503,7 +506,7 @@ class UserObserver
             'permissions' => $user->permissions->pluck('name')->toArray(),
             'created_at' => $user->created_at,
             'last_login' => $user->last_login_at,
-            'activity_count' => $user->activityLogs()->count(),
+            'activity_count' => method_exists($user, 'activityLogs') ? $user->activityLogs()->count() : 0,
             'backup_timestamp' => now()
         ];
     }
@@ -561,7 +564,9 @@ class UserObserver
         $user->readNotifications()->delete();
 
         // Delete activity logs
-        $user->activityLogs()->delete();
+        if (method_exists($user, 'activityLogs')) {
+            $user->activityLogs()->delete();
+        }
 
         // Delete profile
         if ($user->profile) {

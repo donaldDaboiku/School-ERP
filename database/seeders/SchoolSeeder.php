@@ -9,11 +9,13 @@ class SchoolSeeder extends Seeder
 {
     public function run(): void
     {
-        School::create([
-            'name' => 'Demo School',
-            'code' => 'DEMO001',
-            'country' => 'Nigeria',
-            'status' => 'active',
-        ]);
+        School::updateOrCreate(
+            ['code' => 'DEMO001'],
+            [
+                'name' => 'Demo School',
+                'country' => 'Nigeria',
+                'status' => 'active',
+            ]
+        );
     }
 }

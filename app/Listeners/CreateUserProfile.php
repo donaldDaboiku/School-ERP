@@ -27,10 +27,11 @@ class CreateUserProfile
 
         if (!$user->profile) {
             $user->profile()->create([
-                'timezone' => config('app.timezone'),
-                'locale' => config('app.locale'),
-                'notifications_enabled' => true,
-                'two_factor_enabled' => false,
+                'phone' => $user->phone,
+                'address' => $user->address,
+                'avatar' => $user->avatar,
+                'date_of_birth' => $user->date_of_birth,
+                'gender' => $user->gender,
             ]);
         }
     }

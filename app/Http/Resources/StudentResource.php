@@ -27,10 +27,14 @@ class StudentResource extends JsonResource
             'avatar' => $this->user->avatar,
             
             // Student specific
-            'class' => $this->whenLoaded('class', function() {
+            'class' => $this->whenLoaded('classroom', function() {
+                if (! $this->classroom) {
+                    return null;
+                }
+
                 return [
-                    'id' => $this->class->id,
-                    'name' => $this->class->name,
+                    'id' => $this->classroom->id,
+                    'name' => $this->classroom->name,
                 ];
             }),
             'blood_group' => $this->blood_group,

@@ -27,10 +27,11 @@ class CreateStudentProfile
 
         if (!$student->user->profile) {
             $student->user->profile()->create([
-                'timezone' => config('app.timezone'),
-                'locale' => config('app.locale'),
-                'notifications_enabled' => true,
-                'two_factor_enabled' => false,
+                'phone' => $student->user->phone,
+                'address' => $student->user->address,
+                'avatar' => $student->user->avatar,
+                'date_of_birth' => $student->user->date_of_birth,
+                'gender' => $student->user->gender,
             ]);
         }
     }
